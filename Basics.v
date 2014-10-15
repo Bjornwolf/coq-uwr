@@ -868,17 +868,15 @@ Theorem andb_eq_orb :
   b = c.
 Proof.
 intros b c.
-destruct b;
-destruct c.
+destruct b.
+(* destruct c. *)
 simpl.
+intros H.
+rewrite H.
 reflexivity.
 simpl.
-intros H.
-inversion H.
-simpl.
-intros H.
-inversion H.
-simpl.
+intros H'.
+rewrite H'.
 reflexivity.
 Qed.
 
