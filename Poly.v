@@ -629,7 +629,7 @@ Definition prod_curry {X Y Z : Type}
 
 Definition prod_uncurry {X Y Z : Type}
   (f : X -> Y -> Z) (p : X * Y) : Z :=
-  (* FILL IN HERE *) admit.
+  f (fst p) (snd p).
 
 (** (Thought exercise: before running these commands, can you
     calculate the types of [prod_curry] and [prod_uncurry]?) *)
@@ -640,13 +640,21 @@ Check @prod_uncurry.
 Theorem uncurry_curry : forall (X Y Z : Type) (f : X -> Y -> Z) x y,
   prod_curry (prod_uncurry f) x y = f x y.
 Proof.
-  (* FILL IN HERE *) Admitted.
+  intros X Y Z.
+  intros f x y.
+  reflexivity.
+Qed.
 
 Theorem curry_uncurry : forall (X Y Z : Type)
                                (f : (X * Y) -> Z) (p : X * Y),
   prod_uncurry (prod_curry f) p = f p.
 Proof.
-  (* FILL IN HERE *) Admitted.
+  intros X Y Z.
+  intros f.
+  intros (x, y).
+  reflexivity.
+Qed.
+
 (** [] *)
 
 (* ###################################################### *)
@@ -817,7 +825,34 @@ Proof. reflexivity.  Qed.
 Theorem map_rev : forall (X Y : Type) (f : X -> Y) (l : list X),
   map f (rev l) = rev (map f l).
 Proof.
-  (* FILL IN HERE *) Admitted.
+  intros X Y.
+  intros f.
+  intros l.
+  induction l as [|h t].
+  Case "l = nil".
+    reflexivity.
+  Case "l = h t".
+    simpl.
+    rewrite <- IHt.
+    Lemma map_snoc : forall (X Y : Type) (f : X -> Y) (l : list X) (h : X),
+      map f (snoc l h) = snoc (map f l) (f h).
+    Proof.
+      intros X Y.
+      intros f.
+      intros l.
+      intros h.
+      induction l as [|h' t].
+      Case "l = nil".
+        reflexivity.
+      Case "l = h' t".
+        simpl.
+        rewrite IHt.
+        reflexivity.
+    Qed.
+    rewrite map_snoc.
+    reflexivity.
+Qed.
+     
 (** [] *)
 
 (** **** Exercise: 2 stars (flat_map) *)
@@ -1038,7 +1073,18 @@ Theorem override_neq : forall (X:Type) x1 x2 k1 k2 (f : nat->X),
   beq_nat k2 k1 = false ->
   (override f k2 x2) k1 = x1.
 Proof.
-  (* FILL IN HERE *) Admitted.
+  intros X.
+  intros x1 x2.
+  intros k1 k2.
+  intros f.
+  unfold override.
+  intro H1.
+  intro H2.
+  rewrite H2.
+  rewrite H1.
+  reflexivity.
+Qed.
+
 (** [] *)
 
 (** As the inverse of [unfold], Coq also provides a tactic
@@ -1070,7 +1116,24 @@ Theorem fold_length_correct : forall X (l : list X),
     below. *)
 
 Definition fold_map {X Y:Type} (f : X -> Y) (l : list X) : list Y :=
-(* FILL IN HERE *) admit.
+  fold (fun a b => f a :: b) l nil.
+
+Theorem fold_map_correct : forall (X Y : Type) (f : X -> Y) (l : list X),
+  fold_map f l = map f l.
+Proof.
+  intros X Y.
+  intros f.
+  intros l.
+  induction l as [|h t].
+  Case "l = nil".
+    reflexivity.
+  Case "l = h t".
+    unfold fold_map.
+    simpl.
+    rewrite <- IHt.
+    unfold fold_map.
+    reflexivity.
+Qed.
 
 (** Write down a theorem in Coq stating that [fold_map] is correct,
     and prove it. *)
