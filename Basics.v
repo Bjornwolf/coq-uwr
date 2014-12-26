@@ -231,19 +231,19 @@ Proof. reflexivity.  Qed.
     its inputs are [false]. *)
 
 Definition nandb (b1:bool) (b2:bool) : bool :=
-  (* FILL IN HERE *) admit.
+  negb (andb b1 b2).
 
 (** Remove "[Admitted.]" and fill in each proof with 
     "[Proof. reflexivity. Qed.]" *)
 
 Example test_nandb1:               (nandb true false) = true.
-(* FILL IN HERE *) Admitted.
+Proof. reflexivity.  Qed.
 Example test_nandb2:               (nandb false false) = true.
-(* FILL IN HERE *) Admitted.
+Proof. reflexivity.  Qed.
 Example test_nandb3:               (nandb false true) = true.
-(* FILL IN HERE *) Admitted.
+Proof. reflexivity.  Qed.
 Example test_nandb4:               (nandb true true) = false.
-(* FILL IN HERE *) Admitted.
+Proof. reflexivity.  Qed.
 (** [] *)
 
 (** **** Exercise: 1 star (andb3) *)
@@ -252,16 +252,16 @@ Example test_nandb4:               (nandb true true) = false.
     otherwise. *)
 
 Definition andb3 (b1:bool) (b2:bool) (b3:bool) : bool :=
-  (* FILL IN HERE *) admit.
+  andb b1 (andb b2 b3).
 
 Example test_andb31:                 (andb3 true true true) = true.
-(* FILL IN HERE *) Admitted.
+Proof. reflexivity.  Qed.
 Example test_andb32:                 (andb3 false true true) = false.
-(* FILL IN HERE *) Admitted.
+Proof. reflexivity.  Qed.
 Example test_andb33:                 (andb3 true false true) = false.
-(* FILL IN HERE *) Admitted.
+Proof. reflexivity.  Qed.
 Example test_andb34:                 (andb3 true true false) = false.
-(* FILL IN HERE *) Admitted.
+Proof. reflexivity.  Qed.
 (** [] *)
 
 (* ###################################################################### *)
@@ -488,7 +488,7 @@ Fixpoint exp (base power : nat) : nat :=
 Fixpoint factorial (n:nat) : nat := 
   match n with
     | O => S O
-    | S p => mult n (factorial p)
+    | S n' => mult n (factorial n')
   end.
 
 Example test_factorial1:          (factorial 3) = 6.
@@ -581,7 +581,6 @@ Example test_blt_nat2:             (blt_nat 2 4) = true.
 Proof. reflexivity. Qed.
 Example test_blt_nat3:             (blt_nat 4 2) = false.
 Proof. reflexivity. Qed.
-
 (** [] *)
 
 (* ###################################################################### *)
@@ -712,7 +711,13 @@ Proof.
 Theorem plus_id_exercise : forall n m o : nat,
   n = m -> m = o -> n + m = m + o.
 Proof.
-  (* FILL IN HERE *) Admitted.
+  intros n m o.
+  intros H1 H2.
+  rewrite -> H1.
+  rewrite <- H2.
+  reflexivity.
+Qed.
+
 (** [] *)
 
 (** As we've seen in earlier examples, the [Admitted] command
@@ -742,7 +747,12 @@ Theorem mult_S_1 : forall n m : nat,
   m = S n -> 
   m * (1 + n) = m * m.
 Proof.
-  (* FILL IN HERE *) Admitted.
+  intros n m.
+  intros H.
+  rewrite -> plus_1_l.
+  rewrite <- H.
+  reflexivity.
+Qed.
 (** [] *)
 
 
@@ -828,7 +838,12 @@ Proof.
 Theorem zero_nbeq_plus_1 : forall n : nat,
   beq_nat 0 (n + 1) = false.
 Proof.
-  (* FILL IN HERE *) Admitted.
+  intros n.
+  destruct n as [|n'].
+  reflexivity.
+  reflexivity.
+Qed.
+
 (** [] *)
 
 (* ###################################################################### *)
@@ -843,19 +858,31 @@ Theorem identity_fn_applied_twice :
   (forall (x : bool), f x = x) ->
   forall (b : bool), f (f b) = b.
 Proof.
-intros f.
-intros x.
-intros b.
-rewrite x.
-rewrite x.
-reflexivity.
+  intros f.
+  intros H.
+  intros b.
+  rewrite -> H.
+  rewrite -> H.
+  reflexivity.
 Qed.
 
 (** Now state and prove a theorem [negation_fn_applied_twice] similar
     to the previous one but where the second hypothesis says that the
     function [f] has the property that [f x = negb x].*)
 
-(* FILL IN HERE *)
+Theorem negation_fn_applied_twice : 
+  forall (f : bool -> bool), 
+  (forall (x : bool), f x = negb x) ->
+  forall (b : bool), f (f b) = b.
+Proof.
+  intros f.
+  intros H.
+  intros b.
+  rewrite -> H.
+  rewrite -> H.
+  rewrite -> negb_involutive.
+  reflexivity.
+Qed.
 
 (** **** Exercise: 2 stars (andb_eq_orb) *)
 (** Prove the following theorem.  (You may want to first prove a
@@ -867,122 +894,18 @@ Theorem andb_eq_orb :
   (andb b c = orb b c) ->
   b = c.
 Proof.
-intros b c.
-destruct b.
-(* destruct c. *)
-simpl.
-intros H.
-rewrite H.
-reflexivity.
-simpl.
-intros H'.
-rewrite H'.
-reflexivity.
-Qed.
-
-Inductive bin : Type :=
-  | N : bin
-  | T : bin -> bin
-  | A : bin -> bin.
-
-Fixpoint inc (n : bin) : bin :=
-  match n with
-    | N => A N
-    | T x => A x
-    | A x => T (inc x)
-  end.
-
-Example test_inc1:          (inc (T (T (A (T N))))) = A (T (A (T N))).
-Proof. reflexivity. Qed.
-
-Example test_inc2:          inc N = A N.
-Proof. reflexivity. Qed.
-
-Example test_inc3:          inc (A N) = T (A N).
-Proof. reflexivity. Qed.
-
-Fixpoint half (n : nat) : nat :=
-  match n with
-    | O => O
-    | S O => O
-    | S (S x) => S (half x)
-  end.
-
-Example test_half1:          half 0 = 0.
-Proof. reflexivity. Qed.
-
-Example test_half2:          half 1 = 0.
-Proof. reflexivity. Qed.
-
-Example test_half3:          half 5 = 2.
-Proof. reflexivity. Qed.
-
-Example test_half4:          half 8 = 4.
-Proof. reflexivity. Qed.
-
-Fixpoint from_unary (n : nat) : bin :=
-  match n with
-    | O => N
-    | S x => inc (from_unary x)
-  end.
-
-Example test_from_unary1:          from_unary 8 = T (T (T (A N))).
-Proof. reflexivity. Qed.
-
-Fixpoint to_unary (n : bin) : nat :=
-  match n with
-    | N => O
-    | T x => plus (to_unary x) (to_unary x)
-    | A x => S (plus (to_unary x) (to_unary x))
-  end.
-
-Example test_to_unary1:          to_unary N = 0.
-Proof. reflexivity. Qed.
-
-Example test_to_unary2:          to_unary (T (A N)) = 2.
-Proof. reflexivity. Qed.
-
-Example test_to_unary3:          to_unary (A (T (A N))) = 5.
-Proof. reflexivity. Qed.
-
-Theorem ss_plus_eq :
-  forall (n m : nat),
-  S ( S (plus n m)) = plus (S n) (S m).
-Proof.
-induction n.
-simpl.
-reflexivity.
-simpl.
-intros m.
-rewrite IHn.
-simpl.
-reflexivity.
-Qed.
-
-Theorem inc_s_eq :
-  forall (b : bin),
-  to_unary (inc b) = S (to_unary b).
-Proof.
-induction b.
-reflexivity.
-simpl.
-reflexivity.
-simpl.
-rewrite IHb.
-rewrite ss_plus_eq.
-reflexivity.
-Qed.
-
-Theorem from_to_id : 
-  forall (x : nat),
-  to_unary (from_unary x) = x.
-Proof.
-induction x.
-reflexivity.
-simpl.
-rewrite inc_s_eq.
-rewrite IHx.
-reflexivity.
+  intros b c.
+  destruct b,c.
+  reflexivity.
+  simpl.
+  intros H.
+  rewrite H.
+  reflexivity.
+  simpl.
+  intros H.
+  rewrite H.
+  reflexivity.
+  reflexivity.
 Qed.
 
 (** **** Exercise: 3 stars (binary) *)
@@ -1019,8 +942,25 @@ Qed.
         then converting it to unary should yield the same result as first
         converting it to unary and then incrementing. 
 *)
+Inductive bin : Type :=
+  | N : bin
+  | T : bin -> bin
+  | A : bin -> bin.
 
-(* FILL IN HERE *)
+Fixpoint increment (n : bin) : bin :=
+  match n with
+    | N => A N
+    | T x => A x
+    | A x => T (increment x)
+  end.
+
+Fixpoint bin_to_nat (n : bin) : nat :=
+  match n with
+    | N => O
+    | T x => mult 2 (bin_to_nat x)
+    | A x => S (mult 2 (bin_to_nat x))
+  end.
+
 (** [] *)
 
 (* ###################################################################### *)
