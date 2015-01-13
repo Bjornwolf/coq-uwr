@@ -445,18 +445,26 @@ Proof.
 (** **** Exercise: 2 stars, optional (bool_prop) *)
 Theorem andb_false : forall b c,
   andb b c = false -> b = false \/ c = false.
-Proof. 
-  (* FILL IN HERE *) Admitted.
+Proof.
+  intros b c H. destruct b.
+    destruct c. inversion H. right. reflexivity.
+    left. reflexivity.
+Qed.
 
 Theorem orb_prop : forall b c,
   orb b c = true -> b = true \/ c = true.
 Proof.
-  (* FILL IN HERE *) Admitted.
+  intros b c H. destruct b. left. reflexivity.
+  destruct c. right. reflexivity. inversion H.
+Qed.
 
 Theorem orb_false_elim : forall b c,
   orb b c = false -> b = false /\ c = false.
-Proof. 
-  (* FILL IN HERE *) Admitted.
+Proof.
+  intros b c H.
+  destruct b. destruct c. inversion H. inversion H.
+  destruct c. inversion H. split. reflexivity. reflexivity.
+Qed. 
 (** [] *)
 
 
@@ -525,8 +533,7 @@ Proof.
 (** Define [True] as another inductively defined proposition.  (The
     intution is that [True] should be a proposition for which it is
     trivial to give evidence.) *)
-
-(* FILL IN HERE *)
+Inductive True : Prop := T : True.
 (** [] *)
 
 (** However, unlike [False], which we'll use extensively, [True] is
@@ -592,14 +599,18 @@ Proof.
 Theorem contrapositive : forall P Q : Prop,
   (P -> Q) -> (~Q -> ~P).
 Proof.
-  (* FILL IN HERE *) Admitted.
+  intros P Q H1 H2. unfold not. intros H3. apply H1 in H3. unfold not in H2.
+  apply H2 in H3. inversion H3.
+Qed.
 (** [] *)
 
 (** **** Exercise: 1 star (not_both_true_and_false) *)
 Theorem not_both_true_and_false : forall P : Prop,
   ~ (P /\ ~P).
-Proof. 
-  (* FILL IN HERE *) Admitted.
+Proof.
+  intros P. unfold not. intros H1. inversion H1 as [HP HI]. apply HI in HP.
+  inversion HP.
+Qed.
 (** [] *)
 
 (** **** Exercise: 1 star, advanced (informal_not_PNP) *)
@@ -644,6 +655,21 @@ Definition de_morgan_not_and_not := forall P Q:Prop,
 Definition implies_to_or := forall P Q:Prop, 
   (P->Q) -> (~P\/Q). 
 
+Theorem logics_equiv12 : peirce <-> classic.
+Proof.
+  unfold peirce. unfold classic. unfold iff. unfold not. split.
+  intros Pe P Cl.
+  assert (PFP: (P -> False) -> P).
+    intros G. apply Cl in G. inversion G.
+  apply Pe in PFP. apply PFP.
+  intros Cl P Q Pe.
+  assert (PFF: (P -> False) -> False).
+    intros PF.
+    assert (PQ : P -> Q).
+      intros AP. apply PF in AP. inversion AP. apply Pe in PQ. apply PF in PQ.
+      inversion PQ. apply Cl in PFF. apply PFF.
+Qed.
+
 (* FILL IN HERE *)
 (** [] *)
 
@@ -655,6 +681,7 @@ we would have both [~ (P \/ ~P)] and [~ ~ (P \/ ~P)], a contradiction. *)
 
 Theorem excluded_middle_irrefutable:  forall (P:Prop), ~ ~ (P \/ ~ P).  
 Proof.
+  intros P. unfold not. intros H. apply H.
   (* FILL IN HERE *) Admitted.
 
 
@@ -699,7 +726,7 @@ Proof.
 Theorem false_beq_nat : forall n m : nat,
      n <> m ->
      beq_nat n m = false.
-Proof. 
+Proof.
   (* FILL IN HERE *) Admitted.
 (** [] *)
 

@@ -435,8 +435,7 @@ Proof.
     (informally). Hint: The rule universally quantifies over the
     arithmetic expression [a], and your counterexample needs to
     exhibit an [a] for which the rule doesn't work. *)
-
-(* FILL IN HERE *)
+(* a = X + 1 *)
 (** [] *)
 
 (** **** Exercise: 3 stars, advanced (hoare_asgn_fwd) *)
@@ -463,8 +462,21 @@ Theorem hoare_asgn_fwd :
     X ::= a
   {{fun st => P (update st X m) /\ st X = aeval (update st X m) a }}.
 Proof.
-  intros functional_extensionality m a P.
-  (* FILL IN HERE *) Admitted.
+  intros functional_extensionality m a P. unfold hoare_triple.
+  intros st st' HAss HP. inversion HAss. subst. rewrite update_eq. inversion HP.
+  apply update_same with (x2:=X) in H0. symmetry in H0.
+  assert(update (update st X (aeval st a)) X m = update st X m).
+    apply functional_extensionality. intros x. apply update_shadow.
+  rewrite H1. inversion HP. 
+  assert(st = update st X m).
+    apply functional_extensionality. intros x. remember (eq_id_dec X x) as idX.
+    destruct idX.
+      rewrite <- e. rewrite update_eq. assumption.
+      rewrite update_neq. reflexivity. assumption.
+  rewrite <- H4. split.
+    assumption.
+    reflexivity.
+Qed.
 (** [] *)
 
 (** **** Exercise: 2 stars, advanced (hoare_asgn_fwd_exists) *)
@@ -488,8 +500,20 @@ Theorem hoare_asgn_fwd_exists :
   {{fun st => exists m, P (update st X m) /\
                 st X = aeval (update st X m) a }}.
 Proof.
-  intros functional_extensionality a P.
-  (* FILL IN HERE *) Admitted.
+  intros functional_extensionality a P. unfold hoare_triple.
+  intros st st' HAss HP. inversion HAss. subst. exists (st X).
+  assert(forall m, update (update st X (aeval st a)) X m = update st X m).
+    intros m. apply functional_extensionality. intros x. apply update_shadow.
+  rewrite update_eq. rewrite H.
+  assert(st = update st X (st X)).
+    apply functional_extensionality. intros x. remember (eq_id_dec X x) as idX.
+    destruct idX.
+      rewrite <- e. rewrite update_eq. reflexivity.
+      rewrite update_neq. reflexivity. assumption.
+  rewrite <- H0. split.
+    assumption.
+    reflexivity.
+Qed.
 (** [] *)
 
 (* ####################################################### *) 
@@ -805,7 +829,16 @@ Example hoare_asgn_example4 :
   {{fun st => True}} (X ::= (ANum 1);; Y ::= (ANum 2)) 
   {{fun st => st X = 1 /\ st Y = 2}}.
 Proof.
-  (* FILL IN HERE *) Admitted.
+eapply hoare_seq.
+ Case "right assignment".
+  eapply hoare_consequence_pre.
+  apply hoare_asgn.
+   assert((fun st : state => st X = 1) ->> (fun st : state => st X = 1 /\ 2 = 2)).
+    intros st H. split; try assumption; reflexivity. 
+  eassumption.
+ Case "left assignment".
+  eapply hoare_consequence_pre. apply hoare_asgn. intros st H. reflexivity.
+Qed. 
 (** [] *)
 
 (** **** Exercise: 3 stars (swap_exercise) *)
@@ -816,14 +849,29 @@ Proof.
 *)
 
 Definition swap_program : com :=
-  (* FILL IN HERE *) admit.
+  Z ::= AId X;;
+  X ::= AId Y;;
+  Y ::= AId Z.
 
 Theorem swap_exercise :
   {{fun st => st X <= st Y}} 
   swap_program
   {{fun st => st Y <= st X}}.
 Proof.
-  (* FILL IN HERE *) Admitted.
+  eapply hoare_seq.
+    Case "2 right". eapply hoare_seq.
+      SCase "right". apply hoare_asgn.
+      SCase "middle". apply hoare_asgn.
+    Case "left". 
+      assert((fun st : state => st X <= st Y) ->> 
+           (((fun st : state => st Y <= st X) 
+                       [Y |-> AId Z]) [X |-> AId Y]) [Z |-> AId X]).
+        SCase "assert proof". intros st H. unfold assn_sub. simpl.
+        rewrite update_eq. rewrite update_neq. rewrite update_eq. 
+        rewrite update_neq. rewrite update_eq. rewrite update_neq. assumption.
+        intros G; inversion G. intros G; inversion G. intros G; inversion G.
+      eapply hoare_consequence_pre. apply hoare_asgn. eassumption.
+Qed.
 (** [] *)
 
 (** **** Exercise: 3 stars (hoarestate1) *)
@@ -1373,7 +1421,15 @@ Inductive ceval : state -> com -> state -> Prop :=
       ceval st c1 st' ->
       ceval st' (WHILE b1 DO c1 END) st'' ->
       ceval st (WHILE b1 DO c1 END) st''
-(* FILL IN HERE *)
+  | E_RepeatEnd : forall st st' b c,
+      ceval st c st' ->
+      beval st' b = true ->
+      ceval st (REPEAT c UNTIL b END) st'
+  | E_RepeatLoop : forall st st' st'' b c,
+      ceval st c st' ->
+      beval st' b = false ->
+      ceval st' (REPEAT c UNTIL b END) st'' ->
+      ceval st (REPEAT c UNTIL b END) st''
 .
 
 Tactic Notation "ceval_cases" tactic(first) ident(c) :=
@@ -1382,7 +1438,7 @@ Tactic Notation "ceval_cases" tactic(first) ident(c) :=
   | Case_aux c "E_Seq"
   | Case_aux c "E_IfTrue" | Case_aux c "E_IfFalse"
   | Case_aux c "E_WhileEnd" | Case_aux c "E_WhileLoop" 
-(* FILL IN HERE *)
+  | Case_aux c "E_RepeatEnd" | Case_aux c "E_RepeatLoop"
 ].
 
 (** A couple of definitions from above, copied here so they use the
@@ -1411,24 +1467,170 @@ Theorem ex1_repeat_works :
   ex1_repeat / empty_state ||
                update (update empty_state X 1) Y 1.
 Proof.
-  (* FILL IN HERE *) Admitted.
+  unfold ex1_repeat. apply E_RepeatEnd.
+    Case "loop core".
+      apply E_Seq with (st':= update empty_state X 1).
+        apply E_Ass; reflexivity.
+        apply E_Ass; reflexivity.
+    Case "loop condition".
+      simpl; reflexivity.
+Qed.
 
 (** Now state and prove a theorem, [hoare_repeat], that expresses an
     appropriate proof rule for [repeat] commands.  Use [hoare_while]
     as a model, and try to make your rule as precise as possible. *)
 
-(* FILL IN HERE *)
+(**
 
-(** For full credit, make sure (informally) that your rule can be used
-    to prove the following valid Hoare triple:
-  {{ X > 0 }}
-  REPEAT
-    Y ::= X;;
-    X ::= X - 1
-  UNTIL X = 0 END
-  {{ X = 0 /\ Y > 0 }}
+REPEAT c UNTIL b END = c;; WHILE ~b DO c END
+
+
+        ----------------------------------- (hoare_c)
+                    {{P}} c {{Q}}
+
+               {{P /\ b}} c {{P}}
+        -----------------------------------  (hoare_while)
+        {{P}} WHILE b DO c END {{P /\ ~b}}
+
+
+               {{ P }} c1 {{ Q }} 
+               {{ Q }} c2 {{ R }}
+              ---------------------  (hoare_seq)
+              {{ P }} c1;;c2 {{ R }}
+
+ Let b = ~b' and P = P' in hoare_while.
+
+               {{P' /\ ~b'}} c {{P'}}
+        -----------------------------------  (hoare_while)
+        {{P'}} WHILE ~b' DO c END {{P' /\ b'}}
+
+When applied to hoare_seq, we have (with R = P' /\ b', P' = Q).
+
+                                     {{Q /\ ~b'}} c {{Q}}
+                             --------------------------------------
+           {{ P }} c {{ Q }}, {{Q}} WHILE ~b' DO c END {{Q /\ b'}}
+          ----------------------------------------------------------
+                  {{ P }} c;;WHILE ~b' DO c END {{ Q /\ b' }}
+
+which simplifies to
+
+           {{ P }} c {{ Q }}, {{Q /\ ~b'}} c {{Q}}
+          -----------------------------------------
+           {{ P }} REPEAT c UNTIL b' {{ Q /\ b' }}
+
+What's more,
+
+       {{ P }} c {{ Q }}, (Q /\ ~b') ->> P
+    -----------------------------------------
+     {{ P }} c {{ Q }}, {{Q /\ ~b'}} c {{Q}}
+
+So the form of the theorem will be
+
+           {{ P }} c {{ Q }}, (Q /\ ~b') ->> P
+          -----------------------------------------
+           {{ P }} REPEAT c UNTIL b' {{ Q /\ b' }}
+
+We'll use b instead of b'.
 *)
 
+Lemma hoare_repeat : forall P Q b c,
+  {{P}} c {{Q}} ->
+  (fun st => Q st /\ ~(bassn b st)) ->> P ->
+  {{P}} (REPEAT c UNTIL b END) {{fun st => Q st /\ bassn b st}}.
+Proof.
+  intros P Q b c Hc Hbc st st' Hcstates Hp.
+  remember (REPEAT c UNTIL b END) as rcom.
+  ceval_cases (induction Hcstates) Case; 
+    try inversion Heqrcom; subst; clear Heqrcom. 
+    Case "E_RepeatEnd".
+      split.
+        apply Hc in Hcstates. apply Hcstates in Hp. assumption.
+        apply bexp_eval_true in H. assumption.
+    Case "E_RepeatLoop".
+      apply IHHcstates2. reflexivity. apply Hbc.
+      split.
+        apply Hc in Hcstates1. apply Hcstates1 in Hp. assumption.
+        apply bexp_eval_false in H. assumption.
+Qed.
+
+
+Theorem hoare_consequence_post : forall (P Q Q' : Assertion) c,
+{{P}} c {{Q'}} ->
+Q' ->> Q ->
+{{P}} c {{Q}}.
+Proof.
+intros P Q Q' c Hhoare Himp.
+intros st st' Hc HP.
+apply Himp.
+apply (Hhoare st st').
+assumption. assumption. Qed.
+
+Theorem hoare_seq : forall P Q R c1 c2,
+{{Q}} c2 {{R}} ->
+{{P}} c1 {{Q}} ->
+{{P}} c1;;c2 {{R}}.
+Proof.
+intros P Q R c1 c2 H1 H2 st st' H12 Pre.
+inversion H12; subst.
+apply (H1 st'0 st'); try assumption.
+apply (H2 st st'0); assumption. Qed.
+
+Theorem hoare_consequence_pre : forall (P P' Q : Assertion) c,
+{{P'}} c {{Q}} ->
+P ->> P' ->
+{{P}} c {{Q}}.
+Proof.
+intros P P' Q c Hhoare Himp.
+intros st st' Hc HP. apply (Hhoare st st').
+assumption. apply Himp. assumption. Qed.
+
+Theorem hoare_asgn : forall Q X a,
+{{assn_sub X a Q}} (X ::= a) {{Q}}.
+Proof.
+unfold hoare_triple.
+intros Q X a st st' HE HQ.
+inversion HE. subst.
+unfold assn_sub in HQ. assumption. Qed.
+
+Theorem hoare_repeat_works:
+  {{ fun st => st X > 0 }}
+  REPEAT
+    Y ::= AId X;;
+    X ::= AMinus (AId X) (ANum 1)
+  UNTIL BEq (AId X) (ANum 0) END
+  {{ fun st => st X = 0 /\ st Y > 0 }}.
+Proof.
+  remember (fun st => st X > 0) as P.
+  remember (fun st => st Y > 0) as Q.
+  remember (BEq (AId X) (ANum 0)) as b.
+  remember (Y ::= AId X;;
+            X ::= AMinus (AId X) (ANum 1)) as c.
+  remember (REPEAT c UNTIL b END) as prog.
+  assert((fun st => Q st /\ bassn b st) ->> (fun st => st X = 0 /\ st Y > 0)).
+    intros st. rewrite HeqQ, Heqb. unfold bassn. simpl.
+    intros Assu. inversion Assu. split.
+      apply beq_nat_true. assumption. assumption.
+   apply hoare_consequence_post with
+        (P:=(fun st => st X > 0))
+        (Q:=(fun st : state => st X = 0 /\ st Y > 0))
+        (Q':=(fun st : state => Q st /\ bassn b st))
+        (c:=prog).
+     rewrite Heqprog. apply hoare_repeat.
+       rewrite Heqc. apply hoare_seq with Q. eapply hoare_consequence_pre.
+         apply hoare_asgn.
+         intros st HQst. unfold assn_sub. rewrite HeqQ. simpl. 
+         rewrite HeqQ in HQst. rewrite update_neq. assumption.
+         intros HHHHH. inversion HHHHH.
+         eapply hoare_consequence_pre.
+           apply hoare_asgn. intros st HP. unfold assn_sub. rewrite HeqQ.
+           rewrite update_eq. simpl. assumption.
+         intros st HQ'. inversion HQ'. rewrite Heqb in H1. 
+         unfold bassn in H1. simpl in H1. apply not_true_is_false in H1.
+         destruct (st X). inversion H1. omega.
+     intros st Qabas. rewrite HeqQ,Heqb in Qabas. unfold bassn in Qabas.
+     simpl in Qabas. inversion Qabas. split. apply beq_nat_true. assumption.
+     assumption.
+Qed.
 
 End RepeatExercise.
 (** [] *)

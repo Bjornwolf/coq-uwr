@@ -47,7 +47,10 @@ Inductive ev : nat -> Prop :=
 Theorem double_even : forall n,
   ev (double n).
 Proof.
-  (* FILL IN HERE *) Admitted.
+  intros n. induction n as [|n'].
+    simpl. apply ev_0.
+    simpl. apply ev_SS. apply IHn'.
+Qed.
 (** [] *)
 
 
@@ -131,8 +134,10 @@ Qed.
 
 Theorem ev_sum : forall n m,
    ev n -> ev m -> ev (n+m).
-Proof. 
-  (* FILL IN HERE *) Admitted.
+Proof.
+  intros n m En Em. induction En as [|n' En'].
+    simpl. apply Em. simpl. apply ev_SS. apply IHEn'.
+Qed.
 (** [] *)
 
 
@@ -273,13 +278,18 @@ Qed.
 (** **** Exercise: 2 stars (b_times2) *)
 Theorem b_times2: forall n, beautiful n -> beautiful (2*n).
 Proof.
-    (* FILL IN HERE *) Admitted.
+  intros n B. simpl. rewrite plus_0_r.
+  apply b_sum with (n:=n) (m:=n). apply B. apply B.
+Qed.
 (** [] *)
 
 (** **** Exercise: 3 stars (b_timesm) *)
 Theorem b_timesm: forall n m, beautiful n -> beautiful (m*n).
 Proof.
-   (* FILL IN HERE *) Admitted.
+  intros n m B. induction m as [|m'].
+    simpl. apply b_0.
+    simpl. apply b_sum with (n:=n) (m:=m'*n). apply B. apply IHm'.
+Qed.
 (** [] *)
 
 
@@ -332,7 +342,8 @@ Inductive gorgeous : nat -> Prop :=
 Theorem gorgeous_plus13: forall n, 
   gorgeous n -> gorgeous (13+n).
 Proof.
-   (* FILL IN HERE *) Admitted.
+  intros n G. apply g_plus5. apply g_plus5. apply g_plus3. apply G.
+Qed.
 (** [] *)
 
 (** *** *)
@@ -383,13 +394,20 @@ Abort.
 Theorem gorgeous_sum : forall n m,
   gorgeous n -> gorgeous m -> gorgeous (n + m).
 Proof.
- (* FILL IN HERE *) Admitted.
+  intros n m Gn Gm. induction Gn as [|n'|n''].
+    simpl. apply Gm.
+    apply g_plus3. fold plus. apply IHGn.
+    apply g_plus5. fold plus. apply IHGn.
+Qed.
 (** [] *)
 
 (** **** Exercise: 3 stars, advanced (beautiful__gorgeous) *)
 Theorem beautiful__gorgeous : forall n, beautiful n -> gorgeous n.
 Proof.
- (* FILL IN HERE *) Admitted.
+  intros n B. induction B as [|n'|n''|n''' m'''].
+  apply g_0. apply g_plus3. apply g_0. apply g_plus5. apply g_0. 
+  apply gorgeous_sum. apply IHB1. apply IHB2.
+Qed.
 (** [] *)
 
 (** **** Exercise: 3 stars, optional (g_times2) *)
@@ -398,13 +416,19 @@ Proof.
 
 Lemma helper_g_times2 : forall x y z, x + (z + y)= z + x + y.
 Proof.
-   (* FILL IN HERE *) Admitted.
+  intros x y z. rewrite plus_swap. rewrite plus_assoc. reflexivity.
+Qed.
 
 Theorem g_times2: forall n, gorgeous n -> gorgeous (2*n).
 Proof.
-   intros n H. simpl. 
+   intros n H. simpl. rewrite plus_0_r. 
    induction H.
-   (* FILL IN HERE *) Admitted.
+     simpl. apply g_0.
+     apply g_plus3. fold plus. rewrite plus_swap. apply g_plus3.
+     apply IHgorgeous.
+     apply g_plus5. fold plus. rewrite plus_swap. apply g_plus5.
+     apply IHgorgeous.
+Qed.
 (** [] *)
 
 
@@ -481,7 +505,8 @@ Proof.
 Theorem SSSSev__even : forall n,
   ev (S (S (S (S n)))) -> ev n.
 Proof.
-  (* FILL IN HERE *) Admitted.
+  intros n E. inversion E as [|n' E']. inversion E' as [|n'' E'']. apply E''.
+Qed.
 
 (** The [inversion] tactic can also be used to derive goals by showing
     the absurdity of a hypothesis. *)
@@ -489,7 +514,8 @@ Proof.
 Theorem even5_nonsense : 
   ev 5 -> 2 + 2 = 9.
 Proof.
-  (* FILL IN HERE *) Admitted.
+  intros H. inversion H as [|H']. inversion H1 as [|H'']. inversion H3 as [|H'''].
+Qed.
 (** [] *)
 
 (** **** Exercise: 3 stars, advanced (ev_ev__ev) *)
@@ -499,7 +525,9 @@ Proof.
 Theorem ev_ev__ev : forall n m,
   ev (n+m) -> ev n -> ev m.
 Proof.
-  (* FILL IN HERE *) Admitted.
+  intros n m. intros Enm En. induction En. simpl in Enm. apply Enm.
+  simpl in Enm. inversion Enm. apply IHEn in H0. apply H0.
+Qed.
 (** [] *)
 
 (** **** Exercise: 3 stars, optional (ev_plus_plus) *)
@@ -539,6 +567,19 @@ Proof.
 
 
 (* FILL IN HERE *)
+Inductive pal {X: Type} : list X -> Prop :=
+  p_e   : pal []
+| p_m   : forall (x:X) (xs : list X), pal (xs ++ [x] ++ (rev xs))
+| p_tw   : forall (x:X) (xs : list X), pal ((x :: xs) ++ (rev (x :: xs))).
+
+Theorem pal_l_rev_l : forall (X: Type) (l : list X), pal (l ++ rev l).
+Proof.
+  intros X l. induction l as [|h t]. simpl. apply p_e. apply p_tw.
+Qed.
+
+Theorem pal_l_eq_rev_l : forall (X: Type) (l : list X), pal l -> l = rev l.
+Proof. Admitted.
+ 
 (** [] *)
 
 (** **** Exercise: 5 stars, optional (palindrome_converse) *)
@@ -689,15 +730,14 @@ Inductive next_even (n:nat) : nat -> Prop :=
 (** **** Exercise: 2 stars (total_relation) *)
 (** Define an inductive binary relation [total_relation] that holds
     between every pair of natural numbers. *)
-
-(* FILL IN HERE *)
+Inductive total_relation : nat -> nat -> Prop :=
+  tot : forall n m:nat, total_relation n m.
 (** [] *)
 
 (** **** Exercise: 2 stars (empty_relation) *)
 (** Define an inductive binary relation [empty_relation] (on numbers)
     that never holds. *)
-
-(* FILL IN HERE *)
+Inductive empty_relation : nat -> nat -> Prop :=.
 (** [] *)
 
 (** **** Exercise: 2 stars, optional (le_exercises) *)

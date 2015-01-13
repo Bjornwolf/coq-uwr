@@ -3,7 +3,6 @@
 Require Export Hoare.
 
 
-
 (* ####################################################### *)
 (** * Decorated Programs *)
 
@@ -511,16 +510,21 @@ Proof.
     the variable [Y] is to start [Y] at [0], then decrement [X] until
     it hits [0], incrementing [Y] at each step. Here is a program that
     implements this idea:
-      {{ X = m }}
+    {{ X = m }}
     Y ::= 0;
+    {{ X = m /\ Y = 0 }} ->>
+    {{ X + Y = m }}
     WHILE X <> 0 DO
+    {{ X + Y = m /\ X <> 0 }} ->>
+    {{ (X - 1) + (Y + 1) = m }} 
       X ::= X - 1;
       Y ::= Y + 1;
+    {{ X + Y = m }} 
     END
-      {{ Y = m }}
+    {{ X + Y = m /\ ~(X <> 0) }} ->>
+    {{ Y = m }}
     Write an informal decorated program showing that this is correct. *)
 
-(* FILL IN HERE *)
 (** [] *)
 
 (* ####################################################### *)
@@ -539,8 +543,20 @@ Proof.
     a precondition and postcondition that give an appropriate
     specification of [add_slowly]; then (informally) decorate the
     program accordingly. *)
-
-(* FILL IN HERE *)
+(*
+(1) {{ X = n /\ Z = m }} ->>
+(2) {{ Z + X = m + n }}
+  WHILE X <> 0 DO
+(3) {{ Z + X = m + n /\ X <> 0 }} ->>
+(4) {{ (Z + 1) + (X - 1) = m + n }}
+     Z ::= Z + 1;
+(5) {{ Z + (X - 1) = m + n }}
+     X ::= X - 1
+(6) {{ Z + X = m + n }}
+  END
+(7) {{ Z + X = m + n /\ ~(X <> 0) }} ->>
+(8) {{ Z = m + n }}
+*)
 (** [] *)
 
 (* ####################################################### *)
@@ -612,6 +628,19 @@ Proof.
     apply ex_falso_quodlibet. apply H. omega.
 Qed.
 
+(*
+  (1)    {{ X = m }} ->>                              (a - OK)
+  (2)    {{ parity X = parity m }}
+    WHILE 2 <= X DO
+  (3)      {{ parity X = parity m /\ 2 <= X }}  ->>    (c - OK)
+  (4)      {{ parity (X-2) = parity m }}
+  (5)    X ::= X - 2
+  (6)      {{ parity X = parity m }}
+    END
+  (7)    {{ parity X = parity m /\ X < 2 }}  ->>       (b - OK)
+  (8)    {{ X = parity m }}
+*)
+
 Theorem parity_correct : forall m,
     {{ fun st => st X = m }}
   WHILE BLe (ANum 2) (AId X) DO
@@ -619,7 +648,28 @@ Theorem parity_correct : forall m,
   END
     {{ fun st => st X = parity m }}.
 Proof.
-  (* FILL IN HERE *) Admitted.
+  intros m.
+  eapply hoare_consequence_post.
+  Case "(1)..(7)".
+    apply hoare_consequence_pre with (fun st => parity (st X) = parity m).
+    SCase "(2)..(7)".
+      apply hoare_while. eapply hoare_consequence_pre.
+      SSCase "(4)..(6)".
+        apply hoare_asgn.
+      SSCase "(3) ->> (4)".
+        intros st [Hst Hb]. unfold assn_sub. simpl. rewrite update_eq.
+        rewrite <- Hst. apply parity_ge_2. unfold bassn in Hb. simpl in Hb.
+        destruct (st X) as [|x']; try inversion Hb. 
+        destruct x' as [|x'']; try inversion Hb. omega.
+    SCase "(1) ->> (2)".
+      intros st H. rewrite H. reflexivity.
+  Case "(7) ->> (8)".
+    intros st [Hst Hb]. rewrite <- Hst. unfold bassn in Hb; simpl in Hb. 
+    apply not_true_is_false in Hb.
+    destruct (st X) as [|x']; try reflexivity. 
+    destruct x' as [|x'']; try reflexivity. inversion Hb.
+Qed.
+
 (** [] *)
 
 (* ####################################################### *)
@@ -1397,7 +1447,78 @@ Fixpoint real_fact (n:nat) : nat :=
     program that implements the factorial function and prove it
     correct. *)
 
-(* FILL IN HERE *)
+(*
+  (1) {{ X = n }}
+      ->>
+  (2) {{ 1 * (real_fact X) = real_fact n }}
+  Y ::= 1;;
+  (3) {{ Y * (real_fact X) = real_fact n }}
+  WHILE X <> 0 DO
+  (4) {{ Y * (real_fact X) = real_fact n /\ X >= 0 }}
+      ->>
+  (5) {{ (Y * X) * (real_fact (X - 1)) = real_fact n }}
+    Y ::= Y * X;;
+  (6) {{ Y * (real_fact (X - 1)) = real_fact n }}
+    X ::= X - 1
+  (7) {{ Y * (real_fact X) = real_fact n }}
+  END
+  (8) {{ Y * (real_fact X) = real_fact n /\ ~(X >= 0) }}
+      ->>
+  (9) {{ Y = real_fact n }}
+*)
+
+Theorem factorial_dec: forall n,
+  {{ fun st => st X = n }}
+  Y ::= ANum 1;;
+  WHILE BNot (BEq (AId X) (ANum 0)) DO
+    Y ::= AMult (AId Y) (AId X);;
+    X ::= AMinus (AId X) (ANum 1)
+  END
+  {{ fun st => st Y = real_fact n }}.
+Proof.
+  intros n.
+  eapply hoare_consequence_post.
+  Case "(1)..(8)".
+   eapply hoare_consequence_pre. 
+   SCase "(2)..(8)".
+     apply hoare_seq with
+           (fun st => st Y * real_fact (st X) = real_fact n).
+     SSCase "(3)..(8)".
+       apply hoare_while. eapply hoare_consequence_pre.
+       SSSCase "(5)..(7)".
+         eapply hoare_seq.
+         SSSSCase "(6)..(7)".
+           apply hoare_asgn.
+         SSSSCase "(5)..(6)".
+           apply hoare_asgn.
+       SSSCase "(4) ->> (5)".
+         intros st [Hst Hb]. unfold assn_sub. simpl.
+         rewrite update_eq. rewrite update_neq; 
+         try intros HNeq; try inversion HNeq.
+         rewrite update_eq. rewrite update_neq; 
+         try intros HNeq; try inversion HNeq. 
+         unfold bassn in Hb. simpl in Hb.
+         destruct (st X).
+         SSSSCase "st X = 0".
+           simpl in Hb. inversion Hb.
+         SSSSCase "st X > 0". 
+           unfold real_fact in Hst. fold real_fact in Hst. rewrite <- Hst.
+           assert(S n0 - 1 = n0). omega.
+           rewrite H. rewrite mult_assoc. omega.
+     SSCase "(2)..(3)".
+       apply hoare_asgn.
+   SCase "(1) ->> (2)".
+     intros st Hst. unfold assn_sub. rewrite update_eq.
+     rewrite update_neq; try intros HNeq; try inversion HNeq.
+     simpl. rewrite Hst. omega.
+  Case "(8) ->> (9)".
+    intros st [Hst Hb]. unfold bassn in Hb. apply not_true_is_false in Hb.
+    simpl in Hb. destruct (st X) as [|x']. 
+    SCase "st X = 0".
+      simpl in Hst. rewrite <- Hst. omega.
+    SCase "st X > 0".
+      simpl in Hb. inversion Hb.
+Qed.
 (** [] *)
 
 
